@@ -1,5 +1,8 @@
 -include common-help.mk
 
+DEBUG ?= 0
+CURL_OPTS := $(if $(filter 1,$(DEBUG)),-v --stderr /tmp/waquizz/curl_debug.log,-sf)
+
 ##@ Guess Game
 
 SECRET ?= $(shell echo $$((RANDOM % 100 + 1)))
@@ -23,6 +26,7 @@ _guess:
 ## AMOUNT=N      Number of questions (default: 10)
 ## DIFFICULTY=X  easy | medium | hard
 ## CATEGORY=X    all | 9=General | 17=Science | 19=Math | 21=Sports | 23=History | 27=Animals
+## DEBUG=1       Enable verbose curl logging
 
 BASE_URL  := https://cievvxqsxqoadeiwojpd.supabase.co/functions/v1
 STATE_DIR := /tmp/waquizz
@@ -80,7 +84,7 @@ setup: ## Create state directory & fresh IDs
 
 create:
 	@echo "$(DIM)→ Creating game…$(RESET)"
-	@RESP=$$(curl -sf -X POST "$(BASE_URL)/host-operations" \
+	@RESP=$$(curl $(CURL_OPTS) -X POST "$(BASE_URL)/host-operations" \
 	  -H "Content-Type: application/json" \
 	  -d "{\"action\":\"create_solo_game\",\"amount\":$(AMOUNT),\"category\":\"$(CATEGORY)\",\"difficulty\":\"$(DIFFICULTY)\"}" \
 	); \
@@ -100,7 +104,7 @@ create:
 
 join:
 	@echo "$(DIM)→ Joining game…$(RESET)"
-	@RESP=$$(curl -sf -X POST "$(BASE_URL)/web-player" \
+	@RESP=$$(curl $(CURL_OPTS) -X POST "$(BASE_URL)/web-player" \
 	  -H "Content-Type: application/json" \
 	  -d "{\"action\":\"join\",\"sessionId\":\"$$(cat $(STATE_DIR)/session_id)\",\"gameId\":\"$$(cat $(STATE_DIR)/game_id)\",\"alias\":\"You\"}" \
 	); \
@@ -114,10 +118,17 @@ join:
 
 start:
 	@echo "$(DIM)→ Starting game…$(RESET)"
-	@curl -sf -X POST "$(BASE_URL)/host-operations" \
+	@RESP=$$(curl $(CURL_OPTS) -X POST "$(BASE_URL)/host-operations" \
 	  -H "Content-Type: application/json" \
 	  -d "{\"action\":\"start_game\",\"gameId\":\"$$(cat $(STATE_DIR)/game_id)\",\"hostToken\":\"$$(cat $(STATE_DIR)/host_token)\"}" \
-	  > /dev/null
+	  2>$(STATE_DIR)/curl_start.log); \
+	RC=$$?; \
+	if [ $$RC -ne 0 ]; then \
+	  echo "$(RED)✗ Failed to start game (curl exit $$RC)$(RESET)"; \
+	  [ -f $(STATE_DIR)/curl_start.log ] && cat $(STATE_DIR)/curl_start.log; \
+	  exit 1; \
+	fi; \
+	if [ "$(DEBUG)" = "1" ]; then echo "$(DIM)[DEBUG] Response: $$RESP$(RESET)"; fi
 	@echo "$(DIM)✓ Game started$(RESET)"
 	@echo ""
 	@echo "  $(YELLOW)Get ready…$(RESET)"
@@ -132,7 +143,7 @@ _game_loop:
 	@$(MAKE) -s _poll_loop
 
 _poll_loop:
-	@RESP=$$(curl -sf -X POST "$(BASE_URL)/web-player" \
+	@RESP=$$(curl $(CURL_OPTS) -X POST "$(BASE_URL)/web-player" \
 	  -H "Content-Type: application/json" \
 	  -d "{\"action\":\"get_state\",\"sessionId\":\"$$(cat $(STATE_DIR)/session_id)\",\"gameId\":\"$$(cat $(STATE_DIR)/game_id)\"}" \
 	); \
@@ -205,7 +216,7 @@ _ask_answer:
 	  esac; \
 	done; \
 	echo "$$ANSWER" > $(STATE_DIR)/pending_answer; \
-	RESP=$$(curl -sf -X POST "$(BASE_URL)/web-player" \
+	RESP=$$(curl $(CURL_OPTS) -X POST "$(BASE_URL)/web-player" \
 	  -H "Content-Type: application/json" \
 	  -d "{\"action\":\"submit_answer\",\"sessionId\":\"$$(cat $(STATE_DIR)/session_id)\",\"gameId\":\"$$(cat $(STATE_DIR)/game_id)\",\"answer\":\"$$ANSWER\"}" \
 	); \
