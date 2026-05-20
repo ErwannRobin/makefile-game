@@ -1,6 +1,10 @@
+-include common-help.mk
+
+##@ Guess Game
+
 SECRET ?= $(shell echo $$((RANDOM % 100 + 1)))
 
-guess:
+guess: ## Guess a random number between 1 and 100
 	@echo "I'm thinking of a number between 1 and 100..."
 	@$(MAKE) --no-print-directory _guess SECRET=$(SECRET)
 
@@ -14,3 +18,257 @@ _guess:
 		echo "Too high!"; $(MAKE) --no-print-directory _guess SECRET=$(SECRET); \
 	fi
 
+##@ WaQuizz — Solo trivia game (requires: curl, jq, uuidgen)
+## Options
+## AMOUNT=N      Number of questions (default: 10)
+## DIFFICULTY=X  easy | medium | hard
+## CATEGORY=X    all | 9=General | 17=Science | 19=Math | 21=Sports | 23=History | 27=Animals
+
+BASE_URL  := https://cievvxqsxqoadeiwojpd.supabase.co/functions/v1
+STATE_DIR := /tmp/waquizz
+GAME_FILE := $(STATE_DIR)/game.json
+
+AMOUNT     ?= 10
+CATEGORY   ?= all
+DIFFICULTY ?= easy
+
+.PHONY: guess play setup create join start clean
+
+# ─────────────────────────────────────────────
+#  ENTRY POINT
+# ─────────────────────────────────────────────
+
+play: _check_deps setup create join start _game_loop ## Start a trivia game (AMOUNT=10 DIFFICULTY=easy CATEGORY=all)
+
+# ─────────────────────────────────────────────
+#  DEPENDENCY CHECK
+# ─────────────────────────────────────────────
+
+_check_deps:
+	@for cmd in curl jq uuidgen; do \
+	  if ! command -v $$cmd >/dev/null 2>&1; then \
+	    echo "$(RED)✗ Missing dependency: $$cmd$(RESET)"; \
+	    echo "  Install with: brew install $$cmd  (macOS)"; \
+	    echo "               apt install $$cmd  (Debian/Ubuntu)"; \
+	    exit 1; \
+	  fi; \
+	done
+	@echo "$(DIM)✓ Dependencies OK$(RESET)"
+
+# ─────────────────────────────────────────────
+#  SETUP — create state directory & fresh IDs
+# ─────────────────────────────────────────────
+
+setup: ## Create state directory & fresh IDs
+	@mkdir -p $(STATE_DIR)
+	@echo '{}' > $(GAME_FILE)
+	@uuidgen > $(STATE_DIR)/session_id
+	@echo ""
+	@echo "$(CYAN)$(BOLD)  ┌─────────────────────────────┐"
+	@echo "  │        W a Q u i z z        │"
+	@echo "  │       Solo trivia game      │"
+	@echo "  └─────────────────────────────┘$(RESET)"
+	@echo ""
+	@echo "  $(DIM)Questions : $(AMOUNT)$(RESET)"
+	@echo "  $(DIM)Category  : $(CATEGORY)$(RESET)"
+	@echo "  $(DIM)Difficulty: $(DIFFICULTY)$(RESET)"
+	@echo ""
+
+# ─────────────────────────────────────────────
+#  1. CREATE GAME
+# ─────────────────────────────────────────────
+
+create:
+	@echo "$(DIM)→ Creating game…$(RESET)"
+	@RESP=$$(curl -sf -X POST "$(BASE_URL)/host-operations" \
+	  -H "Content-Type: application/json" \
+	  -d "{\"action\":\"create_solo_game\",\"amount\":$(AMOUNT),\"category\":\"$(CATEGORY)\",\"difficulty\":\"$(DIFFICULTY)\"}" \
+	); \
+	if [ -z "$$RESP" ]; then echo "$(RED)✗ No response from server$(RESET)"; exit 1; fi; \
+	OK=$$(echo "$$RESP" | jq -r '.ok // false'); \
+	if [ "$$OK" != "true" ]; then \
+	  ERR=$$(echo "$$RESP" | jq -r '.error // "unknown error"'); \
+	  echo "$(RED)✗ Failed to create game: $$ERR$(RESET)"; exit 1; \
+	fi; \
+	echo "$$RESP" | jq -r '.gameId'    > $(STATE_DIR)/game_id; \
+	echo "$$RESP" | jq -r '.hostToken' > $(STATE_DIR)/host_token; \
+	echo "$(DIM)✓ Game created (id: $$(cat $(STATE_DIR)/game_id))$(RESET)"
+
+# ─────────────────────────────────────────────
+#  2. JOIN GAME
+# ─────────────────────────────────────────────
+
+join:
+	@echo "$(DIM)→ Joining game…$(RESET)"
+	@RESP=$$(curl -sf -X POST "$(BASE_URL)/web-player" \
+	  -H "Content-Type: application/json" \
+	  -d "{\"action\":\"join\",\"sessionId\":\"$$(cat $(STATE_DIR)/session_id)\",\"gameId\":\"$$(cat $(STATE_DIR)/game_id)\",\"alias\":\"You\"}" \
+	); \
+	if [ -z "$$RESP" ]; then echo "$(RED)✗ No response from server$(RESET)"; exit 1; fi; \
+	echo "$$RESP" | jq -r '.playerId // empty' > $(STATE_DIR)/player_id
+	@echo "$(DIM)✓ Joined as player $$(cat $(STATE_DIR)/player_id)$(RESET)"
+
+# ─────────────────────────────────────────────
+#  3. START GAME
+# ─────────────────────────────────────────────
+
+start:
+	@echo "$(DIM)→ Starting game…$(RESET)"
+	@curl -sf -X POST "$(BASE_URL)/host-operations" \
+	  -H "Content-Type: application/json" \
+	  -d "{\"action\":\"start_game\",\"gameId\":\"$$(cat $(STATE_DIR)/game_id)\",\"hostToken\":\"$$(cat $(STATE_DIR)/host_token)\"}" \
+	  > /dev/null
+	@echo "$(DIM)✓ Game started$(RESET)"
+	@echo ""
+	@echo "  $(YELLOW)Get ready…$(RESET)"
+	@sleep 1
+
+# ─────────────────────────────────────────────
+#  4. GAME LOOP — polls state and dispatches
+# ─────────────────────────────────────────────
+
+_game_loop:
+	@echo "-1" > $(STATE_DIR)/last_index
+	@$(MAKE) -s _poll_loop
+
+_poll_loop:
+	@RESP=$$(curl -sf -X POST "$(BASE_URL)/web-player" \
+	  -H "Content-Type: application/json" \
+	  -d "{\"action\":\"get_state\",\"sessionId\":\"$$(cat $(STATE_DIR)/session_id)\",\"gameId\":\"$$(cat $(STATE_DIR)/game_id)\"}" \
+	); \
+	if [ -z "$$RESP" ]; then echo "$(RED)✗ Lost connection$(RESET)"; exit 1; fi; \
+	STATUS=$$(echo "$$RESP" | jq -r '.status'); \
+	case "$$STATUS" in \
+	  question) \
+	    IDX=$$(echo "$$RESP" | jq -r '.currentQuestionIndex'); \
+	    LAST=$$(cat $(STATE_DIR)/last_index); \
+	    if [ "$$IDX" != "$$LAST" ]; then \
+	      echo "$$RESP" > $(STATE_DIR)/current_state.json; \
+	      echo "$$IDX" > $(STATE_DIR)/last_index; \
+	      $(MAKE) -s _render_question; \
+	      $(MAKE) -s _ask_answer; \
+	    fi; \
+	    sleep 2; $(MAKE) -s _poll_loop ;; \
+	  results) \
+	    echo "$$RESP" > $(STATE_DIR)/current_state.json; \
+	    $(MAKE) -s _render_results; \
+	    sleep 2; $(MAKE) -s _poll_loop ;; \
+	  scoreboard) \
+	    echo "$$RESP" > $(STATE_DIR)/current_state.json; \
+	    $(MAKE) -s _render_scoreboard; \
+	    sleep 1; $(MAKE) -s _poll_loop ;; \
+	  finished) \
+	    echo "$$RESP" > $(STATE_DIR)/current_state.json; \
+	    $(MAKE) -s _render_finished ;; \
+	  *) \
+	    sleep 2; $(MAKE) -s _poll_loop ;; \
+	esac
+
+# ─────────────────────────────────────────────
+#  RENDER — Question
+# ─────────────────────────────────────────────
+
+_render_question:
+	@S=$(STATE_DIR)/current_state.json; \
+	IDX=$$(jq -r '.currentQuestionIndex' $$S); \
+	TOTAL=$(AMOUNT); \
+	NUM=$$((IDX + 1)); \
+	TEXT=$$(jq -r '.question.text' $$S); \
+	A=$$(jq -r '.question.choices.A // ""' $$S); \
+	B=$$(jq -r '.question.choices.B // ""' $$S); \
+	C=$$(jq -r '.question.choices.C // ""' $$S); \
+	D=$$(jq -r '.question.choices.D // ""' $$S); \
+	echo ""; \
+	printf "$(CYAN)$(BOLD)  Question $$NUM / $$TOTAL$(RESET)\n"; \
+	echo "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"; \
+	echo ""; \
+	printf "  $(BOLD)$$TEXT$(RESET)\n"; \
+	echo ""; \
+	[ -n "$$A" ] && printf "  $(YELLOW)[A]$(RESET) $$A\n"; \
+	[ -n "$$B" ] && printf "  $(YELLOW)[B]$(RESET) $$B\n"; \
+	[ -n "$$C" ] && printf "  $(YELLOW)[C]$(RESET) $$C\n"; \
+	[ -n "$$D" ] && printf "  $(YELLOW)[D]$(RESET) $$D\n"; \
+	echo ""
+
+# ─────────────────────────────────────────────
+#  INPUT — Ask for answer
+# ─────────────────────────────────────────────
+
+_ask_answer:
+	@while true; do \
+	  printf "  $(BOLD)Your answer (A/B/C/D):$(RESET) "; \
+	  read ANSWER; \
+	  ANSWER=$$(echo "$$ANSWER" | tr '[:lower:]' '[:upper:]' | tr -d ' '); \
+	  case "$$ANSWER" in \
+	    A|B|C|D) break ;; \
+	    *) echo "  $(RED)Please enter A, B, C, or D$(RESET)" ;; \
+	  esac; \
+	done; \
+	echo "$$ANSWER" > $(STATE_DIR)/pending_answer; \
+	RESP=$$(curl -sf -X POST "$(BASE_URL)/web-player" \
+	  -H "Content-Type: application/json" \
+	  -d "{\"action\":\"submit_answer\",\"sessionId\":\"$$(cat $(STATE_DIR)/session_id)\",\"gameId\":\"$$(cat $(STATE_DIR)/game_id)\",\"answer\":\"$$ANSWER\"}" \
+	); \
+	echo "$(DIM)  → Answer submitted, waiting for results…$(RESET)"
+
+# ─────────────────────────────────────────────
+#  RENDER — Results
+# ─────────────────────────────────────────────
+
+_render_results:
+	@S=$(STATE_DIR)/current_state.json; \
+	IS_CORRECT=$$(jq -r '.results.isCorrect // false' $$S); \
+	CORRECT_ANS=$$(jq -r '.results.correctAnswer // "?"' $$S); \
+	PLAYER_ANS=$$(jq -r '.results.playerAnswer // "?"' $$S); \
+	POINTS=$$(jq -r '.results.pointsAwarded // 0' $$S); \
+	echo ""; \
+	if [ "$$IS_CORRECT" = "true" ]; then \
+	  printf "  $(GREEN)$(BOLD)✓ Correct! +$$POINTS points$(RESET)\n"; \
+	else \
+	  printf "  $(RED)$(BOLD)✗ Wrong!$(RESET) The answer was $(GREEN)$$CORRECT_ANS$(RESET)\n"; \
+	fi; \
+	echo ""
+
+# ─────────────────────────────────────────────
+#  RENDER — Scoreboard
+# ─────────────────────────────────────────────
+
+_render_scoreboard:
+	@S=$(STATE_DIR)/current_state.json; \
+	SCORE=$$(jq -r '.scoreboard[0].score // 0' $$S); \
+	printf "  $(DIM)Score so far: $(BOLD)$$SCORE pts$(RESET)\n"
+
+# ─────────────────────────────────────────────
+#  RENDER — Finished
+# ─────────────────────────────────────────────
+
+_render_finished:
+	@S=$(STATE_DIR)/current_state.json; \
+	SCORE=$$(jq -r '.scoreboard[0].score // 0' $$S); \
+	MAX=$$(($(AMOUNT) * 1500)); \
+	echo ""; \
+	echo "  $(CYAN)$(BOLD)━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━$(RESET)"; \
+	echo "  $(CYAN)$(BOLD)  Game Over!$(RESET)"; \
+	echo "  $(CYAN)$(BOLD)━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━$(RESET)"; \
+	echo ""; \
+	printf "  Final score: $(BOLD)$$SCORE / $$MAX$(RESET)\n"; \
+	echo ""; \
+	PCT=$$((SCORE * 100 / MAX)); \
+	if [ $$PCT -ge 70 ]; then \
+	  echo "  $(GREEN)$(BOLD)🏆 Excellent performance!$(RESET)"; \
+	elif [ $$PCT -ge 40 ]; then \
+	  echo "  $(YELLOW)$(BOLD)👍 Good effort!$(RESET)"; \
+	else \
+	  echo "  $(DIM)📚 Keep practicing!$(RESET)"; \
+	fi; \
+	echo ""; \
+	echo "  Run $(BOLD)make play$(RESET) to play again."
+	@echo ""
+
+# ─────────────────────────────────────────────
+#  CLEAN — Remove state files
+# ─────────────────────────────────────────────
+
+clean: ## Remove game state files
+	@rm -rf $(STATE_DIR)
+	@echo "$(DIM)State cleared$(RESET)"
