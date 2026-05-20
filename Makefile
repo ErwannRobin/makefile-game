@@ -26,6 +26,9 @@ wordle: ## 🟩 Wordle — guess the 5-letter word
 meteo: ## 🌤️  Weather forecast
 	@$(MAKE) -C meteo --no-print-directory play CITY=$(or $(CITY),Paris) DAYS=$(or $(DAYS),3) WLANG=$(or $(WLANG),en)
 
+mastermind: ## 🔮 Mastermind — crack the code
+	@$(MAKE) -C mastermind --no-print-directory play
+
 ##@ Utilities
 
 clean: ## 🧹 Clean all game state
@@ -35,6 +38,7 @@ clean: ## 🧹 Clean all game state
 	@$(MAKE) -C minesweeper --no-print-directory clean 2>/dev/null || true
 	@$(MAKE) -C connect4 --no-print-directory clean 2>/dev/null || true
 	@$(MAKE) -C wordle --no-print-directory clean 2>/dev/null || true
+	@$(MAKE) -C mastermind --no-print-directory clean 2>/dev/null || true
 	@echo "All clean!"
 
-.PHONY: guess quizz tictactoe hangman minesweeper connect4 wordle meteo clean
+.PHONY: guess quizz tictactoe hangman minesweeper connect4 wordle meteo mastermind clean
