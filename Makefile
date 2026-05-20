@@ -8,10 +8,14 @@ guess: ## 🔢 Guess the number (1-100)
 quizz: ## 🧠 Quizz — Solo trivia game
 	@$(MAKE) -C quizz --no-print-directory play
 
+tictactoe: ## ❌ Tic-Tac-Toe vs computer
+	@$(MAKE) -C tictactoe --no-print-directory play
+
 ##@ Utilities
 
 clean: ## 🧹 Clean all game state
-	@$(MAKE) -C waquizz --no-print-directory clean 2>/dev/null || true
+	@$(MAKE) -C quizz --no-print-directory clean 2>/dev/null || true
+	@$(MAKE) -C tictactoe --no-print-directory clean 2>/dev/null || true
 	@echo "All clean!"
 
-.PHONY: guess waquizz clean
+.PHONY: guess quizz tictactoe clean
