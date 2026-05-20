@@ -11,7 +11,7 @@ MINES ?= 10
 
 .PHONY: play clean
 
-play: ## Play Minesweeper (ROWS=8 COLS=8 MINES=10)
+play: ## 💣 Minesweeper
 	@mkdir -p $(STATE_DIR)
 	@echo ""
 	@echo "$(CYAN)$(BOLD)  ┌─────────────────────────────┐"

@@ -11,7 +11,7 @@ WORDS := planet guitar bridge rocket castle monkey forest puzzle knight dragon \
 
 .PHONY: play clean
 
-play: ## Play Hangman — guess the word before you run out of lives
+play: ## 🪢 Hangman — guess the word
 	@mkdir -p $(STATE_DIR)
 	@WORD=$$(echo $(WORDS) | tr ' ' '\n' | awk 'BEGIN{srand()}{a[NR]=$$0}END{print a[int(rand()*NR)+1]}'); \
 	printf '%s' "$$WORD" > $(WORD_FILE)

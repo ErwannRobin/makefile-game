@@ -64,7 +64,7 @@ WORDS := crane slate audio adieu stare roate arise alone about above \
 
 .PHONY: play clean
 
-play: ## Play Wordle — guess the 5-letter word in 6 tries
+play: ## 🟩 Wordle — guess the 5-letter word
 	@mkdir -p $(STATE_DIR)
 	@WORD=$$(echo $(WORDS) | tr ' ' '\n' | awk 'BEGIN{srand()} {w[NR]=$$1} END{print w[int(rand()*NR)+1]}'); \
 	echo "$$WORD" > $(WORD_FILE)

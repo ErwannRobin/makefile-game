@@ -1,48 +1,58 @@
 include common-help.mk
 
+# Auto-discover games (subfolders with a Makefile containing a play target)
+GAMES := $(sort $(patsubst %/Makefile,%,$(wildcard */Makefile)))
+
+.PHONY: menu clean $(GAMES)
+
+.DEFAULT_GOAL := menu
+
 ##@ Games
 
-guess: ## 🔢 Guess the number (1-100)
-	@$(MAKE) -C guess --no-print-directory play
+menu: ## 🎮 Interactive game menu
+	@echo ""
+	@echo "$(BOLD)$(CYAN)  ┌─────────────────────────────────────┐"
+	@echo "  │        🎮  G A M E   M E N U        │"
+	@echo "  └─────────────────────────────────────┘$(RESET)"
+	@echo ""
+	@echo "  $(BOLD) #  Game$(RESET)"
+	@echo "  $(DIM)───────────────────────────────────$(RESET)"
+	@i=1; for game in $(GAMES); do \
+	  DESC=$$(grep '^play:.*##' $$game/Makefile 2>/dev/null | sed 's/^play:.*## *//'); \
+	  [ -z "$$DESC" ] && DESC="$$game"; \
+	  printf "  %2d) %s\n" $$i "$$DESC"; \
+	  i=$$((i + 1)); \
+	done
+	@echo "  $(DIM)───────────────────────────────────$(RESET)"
+	@echo "   0) 🚪  Quit"
+	@echo ""
+	@printf "  $(BOLD)Choose a game (0-$$(echo $(GAMES) | wc -w | tr -d ' ')): $(RESET)"; \
+	read CHOICE; \
+	if [ "$$CHOICE" = "0" ]; then \
+	  echo "  $(DIM)Bye! 👋$(RESET)"; exit 0; \
+	fi; \
+	i=1; FOUND=""; \
+	for game in $(GAMES); do \
+	  if [ $$i -eq $$CHOICE ] 2>/dev/null; then \
+	    FOUND=$$game; break; \
+	  fi; \
+	  i=$$((i + 1)); \
+	done; \
+	if [ -z "$$FOUND" ]; then \
+	  echo "  $(RED)Invalid choice.$(RESET)"; \
+	  $(MAKE) --no-print-directory menu; \
+	else \
+	  $(MAKE) --no-print-directory $$FOUND; \
+	fi
 
-quizz: ## 🧠 Quizz — Solo trivia game
-	@$(MAKE) -C quizz --no-print-directory play
-
-tictactoe: ## ❌ Tic-Tac-Toe vs computer
-	@$(MAKE) -C tictactoe --no-print-directory play
-
-hangman: ## 🪢 Hangman — guess the word
-	@$(MAKE) -C hangman --no-print-directory play
-
-minesweeper: ## 💣 Minesweeper
-	@$(MAKE) -C minesweeper --no-print-directory play
-
-connect4: ## 🔴 Connect 4 — four in a row
-	@$(MAKE) -C connect4 --no-print-directory play
-
-wordle: ## 🟩 Wordle — guess the 5-letter word
-	@$(MAKE) -C wordle --no-print-directory play
-
-meteo: ## 🌤️  Weather forecast
-	@$(MAKE) -C meteo --no-print-directory play CITY=$(or $(CITY),Paris) DAYS=$(or $(DAYS),3) WLANG=$(or $(WLANG),en)
-
-mastermind: ## 🔮 Mastermind — crack the code
-	@$(MAKE) -C mastermind --no-print-directory play
-
-sokoban: ## 📦 Sokoban — push boxes onto targets
-	@$(MAKE) -C sokoban --no-print-directory play LEVEL=$(or $(LEVEL),1)
+# Generic rule: any game folder becomes a target
+$(GAMES):
+	@$(MAKE) -C $@ --no-print-directory play
 
 ##@ Utilities
 
 clean: ## 🧹 Clean all game state
-	@$(MAKE) -C quizz --no-print-directory clean 2>/dev/null || true
-	@$(MAKE) -C tictactoe --no-print-directory clean 2>/dev/null || true
-	@$(MAKE) -C hangman --no-print-directory clean 2>/dev/null || true
-	@$(MAKE) -C minesweeper --no-print-directory clean 2>/dev/null || true
-	@$(MAKE) -C connect4 --no-print-directory clean 2>/dev/null || true
-	@$(MAKE) -C wordle --no-print-directory clean 2>/dev/null || true
-	@$(MAKE) -C mastermind --no-print-directory clean 2>/dev/null || true
-	@$(MAKE) -C sokoban --no-print-directory clean 2>/dev/null || true
-	@echo "All clean!"
-
-.PHONY: guess quizz tictactoe hangman minesweeper connect4 wordle meteo mastermind sokoban clean
+	@for game in $(GAMES); do \
+	  $(MAKE) -C $$game --no-print-directory clean 2>/dev/null || true; \
+	done
+	@echo "  All clean!"

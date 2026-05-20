@@ -14,7 +14,7 @@ LEVEL ?= 1
 
 .PHONY: play clean
 
-play: ## Play Sokoban — push all boxes onto targets
+play: ## 📦 Sokoban — push boxes onto targets
 	@mkdir -p $(STATE_DIR)
 	@echo "$(LEVEL)" > $(LEVEL_FILE)
 	@echo "0" > $(MOVES_FILE)

@@ -23,7 +23,7 @@ DIFFICULTY ?= easy
 #  ENTRY POINT
 # ─────────────────────────────────────────────
 
-play: _check_deps setup create join start _game_loop ## Start a trivia game
+play: _check_deps setup create join start _game_loop ## 🧠 Quizz — Solo trivia
 
 # ─────────────────────────────────────────────
 #  DEPENDENCY CHECK

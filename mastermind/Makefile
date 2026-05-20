@@ -21,7 +21,7 @@ C8 := \033[1;91m●\033[0m
 
 .PHONY: play clean
 
-play: ## Play Mastermind — crack the secret code
+play: ## 🔮 Mastermind — crack the code
 	@mkdir -p $(STATE_DIR)
 	@awk -v pegs=$(PEGS) -v colors=$(COLORS) 'BEGIN { srand(); for (i=0;i<pegs;i++) printf "%d", int(rand()*colors)+1; }' /dev/null > $(SECRET_FILE)
 	@: > $(GUESSES_FILE)

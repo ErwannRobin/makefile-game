@@ -5,7 +5,7 @@ BOARD_FILE := $(STATE_DIR)/board
 
 .PHONY: play clean
 
-play: ## Play Tic-Tac-Toe against the computer
+play: ## ❌ Tic-Tac-Toe vs computer
 	@mkdir -p $(STATE_DIR)
 	@printf '.........' > $(BOARD_FILE)
 	@echo ""

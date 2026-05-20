@@ -9,7 +9,7 @@ COLS := 7
 
 .PHONY: play clean
 
-play: ## Play Connect 4 against the computer
+play: ## 🔴 Connect 4 — four in a row
 	@mkdir -p $(STATE_DIR)
 	@awk -v total=$$(($(ROWS) * $(COLS))) 'BEGIN { for (i = 0; i < total; i++) printf "."; }' /dev/null > $(BOARD_FILE)
 	@printf 'X' > $(TURN_FILE)

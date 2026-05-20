@@ -4,7 +4,7 @@ SECRET ?= $(shell echo $$((RANDOM % 100 + 1)))
 
 .PHONY: play _guess
 
-play: ## Guess a random number between 1 and 100
+play: ## 🔢 Guess the number (1-100)
 	@echo "I'm thinking of a number between 1 and 100..."
 	@$(MAKE) --no-print-directory _guess SECRET=$(SECRET)
 
