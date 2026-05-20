@@ -5,8 +5,8 @@ include common-help.mk
 guess: ## 🔢 Guess the number (1-100)
 	@$(MAKE) -C guess --no-print-directory play
 
-waquizz: ## 🧠 WaQuizz — Solo trivia game
-	@$(MAKE) -C waquizz --no-print-directory play
+quizz: ## 🧠 Quizz — Solo trivia game
+	@$(MAKE) -C quizz --no-print-directory play
 
 ##@ Utilities
 

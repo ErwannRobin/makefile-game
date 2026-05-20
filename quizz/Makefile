@@ -216,8 +216,8 @@ _render_question:
 	  -e 's/&hellip;/…/g' \
 	  -e 's/&ndash;/–/g' \
 	  -e 's/&mdash;/—/g' \
-	  -e 's/&lsquo;/'/g' \
-	  -e 's/&rsquo;/'/g' \
+	  -e 's/&lsquo;/'"'"'/g' \
+	  -e 's/&rsquo;/'"'"'/g' \
 	  -e 's/&ldquo;/"/g' \
 	  -e 's/&rdquo;/"/g' \
 	  -e 's/&#[0-9]\{1,\};//g' ; }; \
