@@ -9,6 +9,7 @@ A collection of terminal games implemented entirely in GNU Make. No compilation 
 | 🔢 Guess | `make guess` | Guess a random number between 1 and 100 |
 | 🧠 Quizz | `make quizz` | Solo trivia quiz with 5 questions |
 | ❌ Tic-Tac-Toe | `make tictactoe` | Play against the computer |
+| 🪢 Hangman | `make hangman` | Guess the word before you're hanged |
 
 ## Quick Start
 
@@ -19,6 +20,7 @@ make help       # Show available games
 make guess      # Play the number guessing game
 make quizz      # Play the trivia game
 make tictactoe  # Play tic-tac-toe vs CPU
+make hangman    # Play hangman
 ```
 
 ## Requirements
@@ -47,8 +49,10 @@ makefile-games/
 │   └── Makefile      ← Number guessing game
 ├── quizz/
 │   └── Makefile      ← Trivia game
-└── tictactoe/
-    └── Makefile      ← Tic-Tac-Toe vs computer
+├── tictactoe/
+│   └── Makefile      ← Tic-Tac-Toe vs computer
+└── hangman/
+    └── Makefile      ← Hangman word game
 ```
 
 ## Adding a New Game
