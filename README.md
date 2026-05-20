@@ -10,6 +10,7 @@ A collection of terminal games implemented entirely in GNU Make. No compilation 
 | 🧠 Quizz | `make quizz` | Solo trivia quiz with 5 questions |
 | ❌ Tic-Tac-Toe | `make tictactoe` | Play against the computer |
 | 🪢 Hangman | `make hangman` | Guess the word before you're hanged |
+| 💣 Minesweeper | `make minesweeper` | Classic minesweeper grid |
 
 ## Quick Start
 
@@ -21,6 +22,7 @@ make guess      # Play the number guessing game
 make quizz      # Play the trivia game
 make tictactoe  # Play tic-tac-toe vs CPU
 make hangman    # Play hangman
+make minesweeper # Play minesweeper
 ```
 
 ## Requirements
@@ -51,8 +53,10 @@ makefile-games/
 │   └── Makefile      ← Trivia game
 ├── tictactoe/
 │   └── Makefile      ← Tic-Tac-Toe vs computer
-└── hangman/
-    └── Makefile      ← Hangman word game
+├── hangman/
+│   └── Makefile      ← Hangman word game
+└── minesweeper/
+    └── Makefile      ← Minesweeper grid game
 ```
 
 ## Adding a New Game

@@ -14,12 +14,16 @@ tictactoe: ## ❌ Tic-Tac-Toe vs computer
 hangman: ## 🪢 Hangman — guess the word
 	@$(MAKE) -C hangman --no-print-directory play
 
+minesweeper: ## 💣 Minesweeper
+	@$(MAKE) -C minesweeper --no-print-directory play
+
 ##@ Utilities
 
 clean: ## 🧹 Clean all game state
 	@$(MAKE) -C quizz --no-print-directory clean 2>/dev/null || true
 	@$(MAKE) -C tictactoe --no-print-directory clean 2>/dev/null || true
 	@$(MAKE) -C hangman --no-print-directory clean 2>/dev/null || true
+	@$(MAKE) -C minesweeper --no-print-directory clean 2>/dev/null || true
 	@echo "All clean!"
 
-.PHONY: guess quizz tictactoe hangman clean
+.PHONY: guess quizz tictactoe hangman minesweeper clean
