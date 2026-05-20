@@ -23,6 +23,9 @@ connect4: ## 🔴 Connect 4 — four in a row
 wordle: ## 🟩 Wordle — guess the 5-letter word
 	@$(MAKE) -C wordle --no-print-directory play
 
+meteo: ## 🌤️  Weather forecast
+	@$(MAKE) -C meteo --no-print-directory play CITY=$(or $(CITY),Paris) DAYS=$(or $(DAYS),3) WLANG=$(or $(WLANG),en)
+
 ##@ Utilities
 
 clean: ## 🧹 Clean all game state
@@ -34,4 +37,4 @@ clean: ## 🧹 Clean all game state
 	@$(MAKE) -C wordle --no-print-directory clean 2>/dev/null || true
 	@echo "All clean!"
 
-.PHONY: guess quizz tictactoe hangman minesweeper connect4 wordle clean
+.PHONY: guess quizz tictactoe hangman minesweeper connect4 wordle meteo clean
