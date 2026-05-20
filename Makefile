@@ -32,7 +32,7 @@ BASE_URL  := https://cievvxqsxqoadeiwojpd.supabase.co/functions/v1
 STATE_DIR := /tmp/waquizz
 GAME_FILE := $(STATE_DIR)/game.json
 
-AMOUNT     ?= 10
+AMOUNT     ?= 5
 CATEGORY   ?= all
 DIFFICULTY ?= easy
 
@@ -42,7 +42,7 @@ DIFFICULTY ?= easy
 #  ENTRY POINT
 # ─────────────────────────────────────────────
 
-play: _check_deps setup create join start _game_loop ## Start a trivia game (AMOUNT=10 DIFFICULTY=easy CATEGORY=all)
+play: _check_deps setup create join start _game_loop ## Start a trivia game (AMOUNT=5 DIFFICULTY=easy CATEGORY=all)
 
 # ─────────────────────────────────────────────
 #  DEPENDENCY CHECK
@@ -120,7 +120,7 @@ start:
 	@echo "$(DIM)→ Starting game…$(RESET)"
 	@RESP=$$(curl $(CURL_OPTS) -X POST "$(BASE_URL)/host-operations" \
 	  -H "Content-Type: application/json" \
-	  -d "{\"action\":\"start_game\",\"gameId\":\"$$(cat $(STATE_DIR)/game_id)\",\"hostToken\":\"$$(cat $(STATE_DIR)/host_token)\"}" \
+	  -d "{\"action\":\"update_game\",\"gameId\":\"$$(cat $(STATE_DIR)/game_id)\",\"hostToken\":\"$$(cat $(STATE_DIR)/host_token)\",\"updates\":{\"status\":\"question\",\"current_question_index\":0}}" \
 	  2>$(STATE_DIR)/curl_start.log); \
 	RC=$$?; \
 	if [ $$RC -ne 0 ]; then \
@@ -148,32 +148,53 @@ _poll_loop:
 	  -d "{\"action\":\"get_state\",\"sessionId\":\"$$(cat $(STATE_DIR)/session_id)\",\"gameId\":\"$$(cat $(STATE_DIR)/game_id)\"}" \
 	); \
 	if [ -z "$$RESP" ]; then echo "$(RED)✗ Lost connection$(RESET)"; exit 1; fi; \
-	STATUS=$$(echo "$$RESP" | jq -r '.status'); \
+	STATUS=$$(printf '%s' "$$RESP" | jq -r '.game.status // .status'); \
 	case "$$STATUS" in \
 	  question) \
-	    IDX=$$(echo "$$RESP" | jq -r '.currentQuestionIndex'); \
+	    IDX=$$(printf '%s' "$$RESP" | jq -r '.game.currentQuestionIndex // .currentQuestionIndex'); \
 	    LAST=$$(cat $(STATE_DIR)/last_index); \
 	    if [ "$$IDX" != "$$LAST" ]; then \
-	      echo "$$RESP" > $(STATE_DIR)/current_state.json; \
+	      printf '%s' "$$RESP" > $(STATE_DIR)/current_state.json; \
 	      echo "$$IDX" > $(STATE_DIR)/last_index; \
 	      $(MAKE) -s _render_question; \
 	      $(MAKE) -s _ask_answer; \
 	    fi; \
 	    sleep 2; $(MAKE) -s _poll_loop ;; \
 	  results) \
-	    echo "$$RESP" > $(STATE_DIR)/current_state.json; \
+	    printf '%s' "$$RESP" > $(STATE_DIR)/current_state.json; \
 	    $(MAKE) -s _render_results; \
+	    $(MAKE) -s _advance; \
 	    sleep 2; $(MAKE) -s _poll_loop ;; \
 	  scoreboard) \
-	    echo "$$RESP" > $(STATE_DIR)/current_state.json; \
+	    printf '%s' "$$RESP" > $(STATE_DIR)/current_state.json; \
 	    $(MAKE) -s _render_scoreboard; \
 	    sleep 1; $(MAKE) -s _poll_loop ;; \
 	  finished) \
-	    echo "$$RESP" > $(STATE_DIR)/current_state.json; \
+	    printf '%s' "$$RESP" > $(STATE_DIR)/current_state.json; \
 	    $(MAKE) -s _render_finished ;; \
 	  *) \
+	    if [ "$(DEBUG)" = "1" ]; then printf "$(DIM)[DEBUG] Polling… status=$$STATUS response=%s$(RESET)\n" "$$RESP"; fi; \
 	    sleep 2; $(MAKE) -s _poll_loop ;; \
 	esac
+
+# ─────────────────────────────────────────────
+#  ADVANCE — Move to next question or finish
+# ─────────────────────────────────────────────
+
+_advance:
+	@S=$(STATE_DIR)/current_state.json; \
+	IDX=$$(jq -r '.game.currentQuestionIndex' $$S); \
+	TOTAL=$$(jq -r '.totalQuestions' $$S); \
+	NEXT=$$((IDX + 1)); \
+	if [ $$NEXT -ge $$TOTAL ]; then \
+	  STATUS="finished"; \
+	else \
+	  STATUS="question"; \
+	fi; \
+	curl $(CURL_OPTS) -X POST "$(BASE_URL)/host-operations" \
+	  -H "Content-Type: application/json" \
+	  -d "{\"action\":\"update_game\",\"gameId\":\"$$(cat $(STATE_DIR)/game_id)\",\"hostToken\":\"$$(cat $(STATE_DIR)/host_token)\",\"updates\":{\"status\":\"$$STATUS\",\"current_question_index\":$$NEXT}}" \
+	  > /dev/null 2>&1
 
 # ─────────────────────────────────────────────
 #  RENDER — Question
@@ -181,24 +202,24 @@ _poll_loop:
 
 _render_question:
 	@S=$(STATE_DIR)/current_state.json; \
-	IDX=$$(jq -r '.currentQuestionIndex' $$S); \
+	IDX=$$(jq -r '.game.currentQuestionIndex // .currentQuestionIndex' $$S); \
 	TOTAL=$(AMOUNT); \
 	NUM=$$((IDX + 1)); \
-	TEXT=$$(jq -r '.question.text' $$S); \
-	A=$$(jq -r '.question.choices.A // ""' $$S); \
-	B=$$(jq -r '.question.choices.B // ""' $$S); \
-	C=$$(jq -r '.question.choices.C // ""' $$S); \
-	D=$$(jq -r '.question.choices.D // ""' $$S); \
+	TEXT=$$(jq -r '.currentQuestion.text // .question.text' $$S); \
+	A=$$(jq -r '.currentQuestion.choices.A // .question.choices.A // ""' $$S); \
+	B=$$(jq -r '.currentQuestion.choices.B // .question.choices.B // ""' $$S); \
+	C=$$(jq -r '.currentQuestion.choices.C // .question.choices.C // ""' $$S); \
+	D=$$(jq -r '.currentQuestion.choices.D // .question.choices.D // ""' $$S); \
 	echo ""; \
 	printf "$(CYAN)$(BOLD)  Question $$NUM / $$TOTAL$(RESET)\n"; \
 	echo "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"; \
 	echo ""; \
-	printf "  $(BOLD)$$TEXT$(RESET)\n"; \
+	printf "  $(BOLD)%s$(RESET)\n" "$$TEXT"; \
 	echo ""; \
-	[ -n "$$A" ] && printf "  $(YELLOW)[A]$(RESET) $$A\n"; \
-	[ -n "$$B" ] && printf "  $(YELLOW)[B]$(RESET) $$B\n"; \
-	[ -n "$$C" ] && printf "  $(YELLOW)[C]$(RESET) $$C\n"; \
-	[ -n "$$D" ] && printf "  $(YELLOW)[D]$(RESET) $$D\n"; \
+	[ -n "$$A" ] && printf "  $(YELLOW)[A]$(RESET) %s\n" "$$A"; \
+	[ -n "$$B" ] && printf "  $(YELLOW)[B]$(RESET) %s\n" "$$B"; \
+	[ -n "$$C" ] && printf "  $(YELLOW)[C]$(RESET) %s\n" "$$C"; \
+	[ -n "$$D" ] && printf "  $(YELLOW)[D]$(RESET) %s\n" "$$D"; \
 	echo ""
 
 # ─────────────────────────────────────────────
@@ -218,7 +239,7 @@ _ask_answer:
 	echo "$$ANSWER" > $(STATE_DIR)/pending_answer; \
 	RESP=$$(curl $(CURL_OPTS) -X POST "$(BASE_URL)/web-player" \
 	  -H "Content-Type: application/json" \
-	  -d "{\"action\":\"submit_answer\",\"sessionId\":\"$$(cat $(STATE_DIR)/session_id)\",\"gameId\":\"$$(cat $(STATE_DIR)/game_id)\",\"answer\":\"$$ANSWER\"}" \
+	  -d "{\"action\":\"answer\",\"sessionId\":\"$$(cat $(STATE_DIR)/session_id)\",\"gameId\":\"$$(cat $(STATE_DIR)/game_id)\",\"answer\":\"$$ANSWER\"}" \
 	); \
 	echo "$(DIM)  → Answer submitted, waiting for results…$(RESET)"
 
@@ -228,13 +249,12 @@ _ask_answer:
 
 _render_results:
 	@S=$(STATE_DIR)/current_state.json; \
-	IS_CORRECT=$$(jq -r '.results.isCorrect // false' $$S); \
-	CORRECT_ANS=$$(jq -r '.results.correctAnswer // "?"' $$S); \
-	PLAYER_ANS=$$(jq -r '.results.playerAnswer // "?"' $$S); \
-	POINTS=$$(jq -r '.results.pointsAwarded // 0' $$S); \
+	CORRECT_ANS=$$(jq -r '.currentQuestion.correct_answer // "?"' $$S); \
+	MY_ANS=$$(jq -r '.myAnswer // "?"' $$S); \
+	SCORE=$$(jq -r '.player.score // 0' $$S); \
 	echo ""; \
-	if [ "$$IS_CORRECT" = "true" ]; then \
-	  printf "  $(GREEN)$(BOLD)✓ Correct! +$$POINTS points$(RESET)\n"; \
+	if [ "$$MY_ANS" = "$$CORRECT_ANS" ]; then \
+	  printf "  $(GREEN)$(BOLD)✓ Correct! (Score: $$SCORE)$(RESET)\n"; \
 	else \
 	  printf "  $(RED)$(BOLD)✗ Wrong!$(RESET) The answer was $(GREEN)$$CORRECT_ANS$(RESET)\n"; \
 	fi; \
@@ -246,7 +266,7 @@ _render_results:
 
 _render_scoreboard:
 	@S=$(STATE_DIR)/current_state.json; \
-	SCORE=$$(jq -r '.scoreboard[0].score // 0' $$S); \
+	SCORE=$$(jq -r '.player.score // 0' $$S); \
 	printf "  $(DIM)Score so far: $(BOLD)$$SCORE pts$(RESET)\n"
 
 # ─────────────────────────────────────────────
@@ -255,7 +275,7 @@ _render_scoreboard:
 
 _render_finished:
 	@S=$(STATE_DIR)/current_state.json; \
-	SCORE=$$(jq -r '.scoreboard[0].score // 0' $$S); \
+	SCORE=$$(jq -r '.player.score // 0' $$S); \
 	MAX=$$(($(AMOUNT) * 1500)); \
 	echo ""; \
 	echo "  $(CYAN)$(BOLD)━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━$(RESET)"; \
