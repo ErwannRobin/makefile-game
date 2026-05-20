@@ -17,6 +17,9 @@ hangman: ## 🪢 Hangman — guess the word
 minesweeper: ## 💣 Minesweeper
 	@$(MAKE) -C minesweeper --no-print-directory play
 
+connect4: ## 🔴 Connect 4 — four in a row
+	@$(MAKE) -C connect4 --no-print-directory play
+
 ##@ Utilities
 
 clean: ## 🧹 Clean all game state
@@ -24,6 +27,7 @@ clean: ## 🧹 Clean all game state
 	@$(MAKE) -C tictactoe --no-print-directory clean 2>/dev/null || true
 	@$(MAKE) -C hangman --no-print-directory clean 2>/dev/null || true
 	@$(MAKE) -C minesweeper --no-print-directory clean 2>/dev/null || true
+	@$(MAKE) -C connect4 --no-print-directory clean 2>/dev/null || true
 	@echo "All clean!"
 
-.PHONY: guess quizz tictactoe hangman minesweeper clean
+.PHONY: guess quizz tictactoe hangman minesweeper connect4 clean

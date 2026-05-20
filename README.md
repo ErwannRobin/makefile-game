@@ -11,6 +11,7 @@ A collection of terminal games implemented entirely in GNU Make. No compilation 
 | ❌ Tic-Tac-Toe | `make tictactoe` | Play against the computer |
 | 🪢 Hangman | `make hangman` | Guess the word before you're hanged |
 | 💣 Minesweeper | `make minesweeper` | Classic minesweeper grid |
+| 🔴 Connect 4 | `make connect4` | Four in a row vs computer |
 
 ## Quick Start
 
@@ -23,6 +24,7 @@ make quizz      # Play the trivia game
 make tictactoe  # Play tic-tac-toe vs CPU
 make hangman    # Play hangman
 make minesweeper # Play minesweeper
+make connect4    # Play connect 4
 ```
 
 ## Requirements
@@ -56,7 +58,9 @@ makefile-games/
 ├── hangman/
 │   └── Makefile      ← Hangman word game
 └── minesweeper/
-    └── Makefile      ← Minesweeper grid game
+│   └── Makefile      ← Minesweeper grid game
+└── connect4/
+    └── Makefile      ← Connect 4 (four in a row)
 ```
 
 ## Adding a New Game
