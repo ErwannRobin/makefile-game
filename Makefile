@@ -29,6 +29,9 @@ meteo: ## 🌤️  Weather forecast
 mastermind: ## 🔮 Mastermind — crack the code
 	@$(MAKE) -C mastermind --no-print-directory play
 
+sokoban: ## 📦 Sokoban — push boxes onto targets
+	@$(MAKE) -C sokoban --no-print-directory play LEVEL=$(or $(LEVEL),1)
+
 ##@ Utilities
 
 clean: ## 🧹 Clean all game state
@@ -39,6 +42,7 @@ clean: ## 🧹 Clean all game state
 	@$(MAKE) -C connect4 --no-print-directory clean 2>/dev/null || true
 	@$(MAKE) -C wordle --no-print-directory clean 2>/dev/null || true
 	@$(MAKE) -C mastermind --no-print-directory clean 2>/dev/null || true
+	@$(MAKE) -C sokoban --no-print-directory clean 2>/dev/null || true
 	@echo "All clean!"
 
-.PHONY: guess quizz tictactoe hangman minesweeper connect4 wordle meteo mastermind clean
+.PHONY: guess quizz tictactoe hangman minesweeper connect4 wordle meteo mastermind sokoban clean
