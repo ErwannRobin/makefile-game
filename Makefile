@@ -201,15 +201,54 @@ _advance:
 # ─────────────────────────────────────────────
 
 _render_question:
-	@S=$(STATE_DIR)/current_state.json; \
+	@decode() { echo "$$1" | sed \
+	  -e 's/&amp;/\&/g' \
+	  -e 's/&lt;/</g' \
+	  -e 's/&gt;/>/g' \
+	  -e 's/&quot;/"/g' \
+	  -e 's/&#039;/'"'"'/g' \
+	  -e 's/&apos;/'"'"'/g' \
+	  -e 's/&Delta;/Δ/g' \
+	  -e 's/&delta;/δ/g' \
+	  -e 's/&pi;/π/g' \
+	  -e 's/&theta;/θ/g' \
+	  -e 's/&alpha;/α/g' \
+	  -e 's/&beta;/β/g' \
+	  -e 's/&gamma;/γ/g' \
+	  -e 's/&omega;/ω/g' \
+	  -e 's/&mu;/μ/g' \
+	  -e 's/&sigma;/σ/g' \
+	  -e 's/&lambda;/λ/g' \
+	  -e 's/&eacute;/é/g' \
+	  -e 's/&egrave;/è/g' \
+	  -e 's/&ecirc;/ê/g' \
+	  -e 's/&agrave;/à/g' \
+	  -e 's/&ccedil;/ç/g' \
+	  -e 's/&ouml;/ö/g' \
+	  -e 's/&uuml;/ü/g' \
+	  -e 's/&auml;/ä/g' \
+	  -e 's/&ntilde;/ñ/g' \
+	  -e 's/&deg;/°/g' \
+	  -e 's/&copy;/©/g' \
+	  -e 's/&reg;/®/g' \
+	  -e 's/&trade;/™/g' \
+	  -e 's/&hellip;/…/g' \
+	  -e 's/&ndash;/–/g' \
+	  -e 's/&mdash;/—/g' \
+	  -e 's/&lsquo;/'/g' \
+	  -e 's/&rsquo;/'/g' \
+	  -e 's/&ldquo;/"/g' \
+	  -e 's/&rdquo;/"/g' \
+	  -e 's/&#[0-9]\{1,\};//g' ; }; \
+	S=$(STATE_DIR)/current_state.json; \
 	IDX=$$(jq -r '.game.currentQuestionIndex // .currentQuestionIndex' $$S); \
 	TOTAL=$(AMOUNT); \
 	NUM=$$((IDX + 1)); \
-	TEXT=$$(jq -r '.currentQuestion.text // .question.text' $$S); \
-	A=$$(jq -r '.currentQuestion.choices.A // .question.choices.A // ""' $$S); \
-	B=$$(jq -r '.currentQuestion.choices.B // .question.choices.B // ""' $$S); \
-	C=$$(jq -r '.currentQuestion.choices.C // .question.choices.C // ""' $$S); \
-	D=$$(jq -r '.currentQuestion.choices.D // .question.choices.D // ""' $$S); \
+	TEXT=$$(decode "$$(jq -r '.currentQuestion.text // .question.text' $$S)"); \
+	A=$$(decode "$$(jq -r '.currentQuestion.choices.A // .question.choices.A // ""' $$S)"); \
+	B=$$(decode "$$(jq -r '.currentQuestion.choices.B // .question.choices.B // ""' $$S)"); \
+	C=$$(decode "$$(jq -r '.currentQuestion.choices.C // .question.choices.C // ""' $$S)"); \
+	D=$$(decode "$$(jq -r '.currentQuestion.choices.D // .question.choices.D // ""' $$S)"); \
 	echo ""; \
 	printf "$(CYAN)$(BOLD)  Question $$NUM / $$TOTAL$(RESET)\n"; \
 	echo "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"; \
